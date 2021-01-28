@@ -1,0 +1,16 @@
+{
+"DataArray":
+[
+	{
+		"Name": "Beam01",
+		"SWeaponType": "Beam",
+		"Damage": 1,
+		"RateOfFire": 10,
+		"ImpactStrength": 1,
+		"ImpactSize": 1,
+		"Projectile": "Projectile_Laser01",
+		"ImpactVFX": "Impact_SparkConstant01",
+		"ImpactTexture": "Texture_UnevenCircleMask"
+	}
+]
+}

@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbb281ee3bf0b054c82ac2347e9e782c, type: 3}
+  m_Name: Default Local Group
+  m_EditorClassIdentifier: 
+  m_GroupName: Default Local Group
+  m_Data:
+    m_SerializedData: []
+  m_GUID: 84a55997132adb147b727745d5b43838
+  m_SerializeEntries:
+  - m_GUID: 549792b9d53595a42becbe4aefb5606e
+    m_Address: Projectile_Laser01
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Prefab
+    m_MainAsset: {fileID: 0}
+    m_TargetAsset: {fileID: 0}
+  - m_GUID: 2d4349d9f8d40644197985df77264acd
+    m_Address: Impact_SparkConstant01
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Prefab
+    m_MainAsset: {fileID: 0}
+    m_TargetAsset: {fileID: 0}
+  - m_GUID: 9b2ba3a99fb3eec4db72bddf7bfa327a
+    m_Address: Texture_UnevenCircleMask
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Texture
+    m_MainAsset: {fileID: 0}
+    m_TargetAsset: {fileID: 0}
+  - m_GUID: 17d7e76821251834e8275f84828aebf6
+    m_Address: Blit_Additive
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Material
+    m_MainAsset: {fileID: 0}
+    m_TargetAsset: {fileID: 0}
+  - m_GUID: a146f2dd624d170469ca527bea8e9d22
+    m_Address: Explosion_Debris01
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Prefab
+    m_MainAsset: {fileID: 0}
+    m_TargetAsset: {fileID: 0}
+  m_ReadOnly: 0
+  m_Settings: {fileID: 11400000, guid: dc68d1cc38deed642801cf6f49701f8e, type: 2}
+  m_SchemaSet:
+    m_Schemas:
+    - {fileID: 11400000, guid: 1eb6103acde5c354e9c29613525ac331, type: 2}
+    - {fileID: 11400000, guid: 51a1da9e2f28ef94aa91d9fd34a456bd, type: 2}
