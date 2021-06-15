@@ -31,11 +31,10 @@ Material:
     MotionVector: User
     RenderType: Transparent
   disabledShaderPasses:
-  - DistortionVectors
+  - TransparentBackface
   - MOTIONVECTORS
   - TransparentDepthPrepass
   - TransparentDepthPostpass
-  - TransparentBackface
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -143,9 +142,12 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    m_Ints: []
     m_Floats:
     - DissolveAmount: 0
     - DissolveSpeed: 0
+    - Dissolve_Opacity: 1
+    - Distortion_Opacity: 1
     - Vector1_15D490D0: 0.514
     - Vector1_3AE76CFD: 1
     - Vector1_3b1a0bbbf28a463f9c40643ef830eb74: 0
@@ -156,7 +158,7 @@ Material:
     - Vector1_F3DD119: 6
     - Vector1_cd3151f6793b4a9a97304f4753ad1191: 10
     - Vector1_d2cce61f674246f6bbff739047989757: 200
-    - Vector1_f084bf980b0a4506b47c2a0b61992d2a: 1
+    - Vector1_f084bf980b0a4506b47c2a0b61992d2a: 0.02
     - _AORemapMax: 1
     - _AORemapMin: 0
     - _ATDistance: 1
@@ -167,12 +169,12 @@ Material:
     - _AlphaCutoffPostpass: 0.5
     - _AlphaCutoffPrepass: 0.5
     - _AlphaCutoffShadow: 0.5
-    - _AlphaDstBlend: 1
+    - _AlphaDstBlend: 10
     - _AlphaSrcBlend: 1
     - _AlphaToMask: 0
     - _AlphaToMaskInspectorValue: 0
     - _Anisotropy: 0
-    - _BlendMode: 1
+    - _BlendMode: 0
     - _CoatMask: 0
     - _CullMode: 2
     - _CullModeForward: 2
@@ -203,7 +205,7 @@ Material:
     - _DistortionVectorScale: 2
     - _DoubleSidedEnable: 0
     - _DoubleSidedNormalMode: 1
-    - _DstBlend: 1
+    - _DstBlend: 10
     - _EmissiveColorMode: 1
     - _EmissiveExposureWeight: 1
     - _EmissiveIntensity: 1
@@ -284,7 +286,7 @@ Material:
     - _ZTestTransparent: 4
     - _ZWrite: 0
     m_Colors:
-    - BaseCol: {r: 0.03964934, g: 0.42600554, b: 0.764151, a: 0.047058824}
+    - BaseCol: {r: 0.03964934, g: 0.42600536, b: 0.764151, a: 0.047058824}
     - Color_174C6D50: {r: 0, g: 4.454902, b: 5.992157, a: 1}
     - Color_ACE3BE3B: {r: 0.039215684, g: 0.6426601, b: 0.7647059, a: 0.043137256}
     - TexCol: {r: 0, g: 4.4235296, b: 5.992157, a: 0.5176471}

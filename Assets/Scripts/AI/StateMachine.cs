@@ -11,7 +11,7 @@ namespace AI
     public class StateMachine
     {
 
-        AIState Current;
+        AIState Current = null;
         LinkedList<AIState> BehaviourQueue = new LinkedList<AIState>();
 
         public AIState CurrentState { get => Current; }

@@ -1,4 +1,5 @@
-﻿using Entities.Parts.Weapons;
+﻿using Entities.Parts;
+using Entities.Parts.Weapons;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.VFX;
 
 namespace Entities.Parts.Weapons
 {
@@ -19,10 +21,18 @@ namespace Entities.Parts.Weapons
         public float Damage;
         [Tooltip("Damage ticks or shots per second")]
         public float RateOfFire;
+        [SerializeField]
+        protected float ProjectileSpread;
+        [SerializeField]
+        protected string DamageType;
 
         [Header("Projectile Data")]
         [SerializeField]
         protected GameObject Projectile;
+        [SerializeField]
+        protected VisualEffect ProjectileVFX;
+        [SerializeField]
+        public float ProjectileScale = 1.0f;
         [SerializeField]
         protected GameObject ImpactVFX;
         [SerializeField]
@@ -35,6 +45,8 @@ namespace Entities.Parts.Weapons
         protected Material BlitMaterial;
         [SerializeField]
         protected Color ProjectileColour;
+        [SerializeField]
+        protected float ProjectileSpeed;
 
         [SerializeField] [Tooltip("Transform to spawn projectiles from")]
         protected Transform FiringPiece;
@@ -90,15 +102,21 @@ namespace Entities.Parts.Weapons
             FiringPiece = firingPiece;
         }
 
-        public Weapon(JsonConstructors.WeaponConstructor data, Material blitMaterial, Transform firingPiece)
+        public Weapon(JsonConstructors.WeaponConstructor data, Material blitMaterial, Transform firingPiece, WeaponController controller)
         {
             Damage = data.Damage;
             RateOfFire = data.RateOfFire;
+            ProjectileSpread = data.ProjectileSpread;
+            ProjectileSpeed = data.ProjectileSpeed;
             ImpactStrength = data.ImpactStrength;
             ImpactSize = data.ImpactSize;
             if (!Management.DataManager.Prefabs.TryGetValue(data.Projectile, out Projectile))
             {
                 throw new ArgumentException($"'{data.Projectile}' does not match a loaded GameObject");
+            }
+            if (!Management.DataManager.VisualEffects.TryGetValue(data.ProjectileVFX, out VisualEffectAsset vfxAsset))
+            {
+                Debug.LogWarning($"'{data.ProjectileVFX}' does not match a loaded VisualEffectAsset - ignoring vfx");
             }
             if (!Management.DataManager.Prefabs.TryGetValue(data.ImpactVFX, out ImpactVFX))
             {
@@ -109,8 +127,15 @@ namespace Entities.Parts.Weapons
                 throw new ArgumentException($"'{data.ImpactTexture}' does not match a loaded Texture2D");
             }
 
+            if (vfxAsset != null)
+            {
+                ProjectileVFX = firingPiece.gameObject.AddComponent<VisualEffect>();
+                ProjectileVFX.visualEffectAsset = vfxAsset; 
+            }
+
             BlitMaterial = blitMaterial;
             FiringPiece = firingPiece;
+            Controller = controller;
         }
     }
 }
@@ -120,8 +145,8 @@ namespace JsonConstructors
     [Serializable]
     public class WeaponConstructor
     {
-        public float Damage, RateOfFire, ImpactStrength, ImpactSize;
-        public string Projectile, ImpactVFX, ImpactTexture, Name;
+        public float Damage, RateOfFire, ImpactStrength, ImpactSize, ProjectileSpeed, ProjectileSpread;
+        public string Projectile, ProjectileVFX, ImpactVFX, ImpactTexture, Name;
         [JsonProperty]
         string SWeaponType;
         public Type WeaponType;
@@ -132,9 +157,9 @@ namespace JsonConstructors
             WeaponType = Type.GetType("Entities.Parts.Weapons." + SWeaponType);
         }
 
-        public Weapon CreateWeapon(Material blitMaterial, Transform firingPiece)
+        public Weapon CreateWeapon(Material blitMaterial, Transform firingPiece, WeaponController controller)
         {
-            Weapon weapon =  (Weapon)Activator.CreateInstance(WeaponType, this, blitMaterial, firingPiece);
+            Weapon weapon =  (Weapon)Activator.CreateInstance(WeaponType, this, blitMaterial, firingPiece, controller);
             weapon.Init();
             return weapon;
         }

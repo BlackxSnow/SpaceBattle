@@ -24,6 +24,7 @@ namespace Utility
 
             public delegate void ElapsedDelegate(float ActualTime);
             public ElapsedDelegate Elapsed;
+            public TaskCompletionSource<bool> CompletionSource;
             private CancellationTokenSource TokenSource;
 
             public bool Enabled = false;
@@ -37,6 +38,7 @@ namespace Utility
                 LastTime = Time.time;
                 StartTime = Time.time;
                 TokenSource = new CancellationTokenSource();
+                CompletionSource = new TaskCompletionSource<bool>();
                 Counter();
             }
             public void Stop()
@@ -54,6 +56,7 @@ namespace Utility
                     bool passed = await WaitForSeconds(Limit, TokenSource.Token);
                     if (!passed) return;
 
+                    CompletionSource.SetResult(true);
                     Elapsed(Time.time - StartTime);
                     StartTime = Time.time;
                     if (!Repeat) break;

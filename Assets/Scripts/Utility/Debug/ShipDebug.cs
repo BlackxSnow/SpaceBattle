@@ -21,6 +21,8 @@ namespace EditorDebug
         
         public bool DebugMode;
         public bool IsInvincible;
+        public string FactionName;
+        public string FleetName;
         public bool AttackAllEnemies;
         public Transform OrbitTarget;
         public float OrbitRadius;
@@ -46,9 +48,28 @@ namespace EditorDebug
             Self.CurrentSystem = GameManager.Systems["Astraeus"];
             if (Application.isPlaying && DebugMode)
             {
+                if (FactionName == "")
+                {
+                    FactionName = "DefaultFaction";
+                }
+                GameManager.RegisterFaction(FactionName);
+                Self.CurrentFaction = GameManager.Factions[FactionName];
+
+                if (FleetName == "")
+                {
+                    FleetName = Self.name + Self.GetInstanceID();
+                }
+                Self.CurrentFaction.RegisterFleet(FleetName);
+                Self.CurrentFleet = Self.CurrentFaction.Fleets[FleetName];
+
+                if (Self.CurrentFleet.StrategicAI.CurrentState != null)
+                {
+                    return;
+                }
+
                 if (AttackAllEnemies)
                 {
-                    Self.StrategicAI.SetBehaviour(new AttackAllEnemies(Self, Self.CurrentSystem), 1);
+                    Self.CurrentFleet.StrategicAI.SetBehaviour(new AttackAllEnemies(Self.CurrentFleet, Self.CurrentSystem), 1);
                 }
                 else
                 {
@@ -58,7 +79,7 @@ namespace EditorDebug
                     }
                     else
                     {
-                        Self.AIStateMachine.SetBehaviour(new MoveTo(Self, MoveTarget));
+                        //Self.AIStateMachine.SetBehaviour(new MoveTo(Self, MoveTarget));
                     }
                     if (ShootTarget != null)
                     {

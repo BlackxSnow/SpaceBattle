@@ -72,6 +72,7 @@ MonoBehaviour:
     - Prefab
     - Texture
     - Material
+    - VisualEffectAsset
   m_SchemaTemplates: []
   m_GroupTemplateObjects:
   - {fileID: 11400000, guid: feb82cee24ca9c744b99a5a576f29345, type: 2}

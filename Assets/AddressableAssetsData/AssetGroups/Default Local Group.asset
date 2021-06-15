@@ -52,6 +52,27 @@ MonoBehaviour:
     - Prefab
     m_MainAsset: {fileID: 0}
     m_TargetAsset: {fileID: 0}
+  - m_GUID: 6f4d266d8916593419e09609f63329ae
+    m_Address: Projectile_Plasma01
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Prefab
+    m_MainAsset: {fileID: 0}
+    m_TargetAsset: {fileID: 0}
+  - m_GUID: b5ea084b046edff4e9048c646df83fe3
+    m_Address: Impact_PlasmaInstant01
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - Prefab
+    m_MainAsset: {fileID: 6229554700249335302, guid: b5ea084b046edff4e9048c646df83fe3, type: 3}
+    m_TargetAsset: {fileID: 6229554700249335302, guid: b5ea084b046edff4e9048c646df83fe3, type: 3}
+  - m_GUID: c13ccef0db5b6fc4aa99fe171b1133f9
+    m_Address: Bullet_Plasma01
+    m_ReadOnly: 0
+    m_SerializedLabels:
+    - VisualEffectAsset
+    m_MainAsset: {fileID: 8926484042661614526, guid: c13ccef0db5b6fc4aa99fe171b1133f9, type: 3}
+    m_TargetAsset: {fileID: 8926484042661614526, guid: c13ccef0db5b6fc4aa99fe171b1133f9, type: 3}
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: dc68d1cc38deed642801cf6f49701f8e, type: 2}
   m_SchemaSet:

@@ -14,7 +14,7 @@ namespace AI.Actions
     public class OrbitTarget : AIAction
     {
         Ship Self;
-        Transform Target;
+        public Transform Target;
         Vector3 LocalOrientationToTarget;
         public float Radius;
 

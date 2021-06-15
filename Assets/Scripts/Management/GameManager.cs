@@ -12,6 +12,7 @@ namespace Management
         public static GameManager Instance;
 
         public static Dictionary<string, StarSystem> Systems = new Dictionary<string, StarSystem>();
+        public static Dictionary<string, Faction> Factions = new Dictionary<string, Faction>();
         public static event Action GameInitialized;
         public static bool IsGameInitialized;
 
@@ -38,6 +39,19 @@ namespace Management
         private void Start()
         {
             
+        }
+
+        public static bool RegisterFaction(string name)
+        {
+            if (Factions.ContainsKey(name))
+            {
+                return false;
+            }
+            else
+            {
+                Factions.Add(name, new Faction(name));
+                return true;
+            }
         }
 
         private void OnDataLoaded()

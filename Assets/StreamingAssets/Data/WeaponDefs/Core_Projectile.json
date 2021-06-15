@@ -1,0 +1,19 @@
+{
+"DataArray":
+[
+	{
+		"Name": "Plasma01",
+		"SWeaponType": "Projectile",
+		"Damage": 0.5,
+		"RateOfFire": 30,
+		"ProjectileSpeed": 25,
+		"ProjectileSpread": 0,
+		"ImpactStrength": 0.5,
+		"ImpactSize": 0.5,
+		"Projectile": "Projectile_Plasma01",
+		"ProjectileVFX": "Bullet_Plasma01",
+		"ImpactVFX": "Impact_PlasmaInstant01",
+		"ImpactTexture": "Texture_UnevenCircleMask"
+	}
+]
+}

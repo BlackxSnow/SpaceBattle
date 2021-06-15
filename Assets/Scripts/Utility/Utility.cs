@@ -19,9 +19,16 @@ public static class Util
             Max = max;
         }
     }
-    public static bool WithinBounds(float f, Bounds1D bounds)
+    public static bool WithinBounds(float f, Bounds1D bounds, bool inclusive = false)
     {
-        return f > bounds.Min && f < bounds.Max ? true : false;
+        if (!inclusive)
+        {
+            return f > bounds.Min && f < bounds.Max ? true : false; 
+        }
+        else
+        {
+            return f >= bounds.Min && f <= bounds.Max ? true : false;
+        }
     }
     public static Quaternion FromTo(Quaternion a, Quaternion b)
     {

@@ -33,6 +33,7 @@ namespace Entities.Parts.Weapons
 
             laser.Beam = Instantiate(Projectile).GetComponent<LineRenderer>();
             laser.ImpactVFX = Instantiate(ImpactVFX).GetComponent<VisualEffect>();
+            laser.Beam.startWidth = laser.Beam.endWidth = ProjectileScale;
 
 
             while (!token.IsCancellationRequested)
@@ -48,17 +49,26 @@ namespace Entities.Parts.Weapons
                     continue;
                 }
 
+                if (laser.oldCollider == null || laser.HitInfo.collider != laser.oldCollider)
+                {
+                    laser.HitInfo.collider.TryGetComponentInParent(out laser.Damageable);
+                    laser.oldCollider = laser.HitInfo.collider;
+                }
+
+                if (laser?.Damageable is Entity e && e.CurrentFaction == Controller.Owner.CurrentFaction)
+                {
+                    laser.Beam.gameObject.SetActive(false);
+                    laser.ImpactVFX.gameObject.SetActive(false);
+                    laser.IsDisabled = true;
+                    await Await.NextUpdate();
+                    continue;
+                }
+
                 if (laser.IsDisabled)
                 {
                     //laser.Beam.gameObject.SetActive(true);
                     laser.ImpactVFX.gameObject.SetActive(true);
                     laser.Beam.endColor = new Color(laser.Beam.endColor.r, laser.Beam.endColor.g, laser.Beam.endColor.b, 1.0f);
-                }
-
-                if (laser.oldCollider == null || laser.HitInfo.collider != laser.oldCollider)
-                {
-                    laser.HitInfo.collider.TryGetComponentInParent(out laser.Damageable);
-                    laser.oldCollider = laser.HitInfo.collider;
                 }
 
                 laser.Beam.SetPositions(new Vector3[] { FiringPiece.position, laser.HitInfo.point });
@@ -93,7 +103,7 @@ namespace Entities.Parts.Weapons
 
         }
 
-        public Beam(WeaponConstructor data, Material blitMaterial, Transform firingPiece) : base(data, blitMaterial, firingPiece)
+        public Beam(WeaponConstructor data, Material blitMaterial, Transform firingPiece, WeaponController controller) : base(data, blitMaterial, firingPiece, controller)
         {
 
         }

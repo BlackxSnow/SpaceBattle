@@ -12,12 +12,12 @@ namespace AI.Turrets
     public class WeaponFireAt : AIAction
     {
         WeaponController Self;
-        Entity Target;
+        public Entity Target { get; protected set; }
         Transform AimPoint;
 
         protected async override void Behaviour(CancellationToken token)
         {
-            const float validationTime = 1;
+            const float validationTime = 0.1f;
             float t = validationTime;
             while (!token.IsCancellationRequested && Target != null)
             {
@@ -31,7 +31,7 @@ namespace AI.Turrets
                         {
                             Self.StopFiring();
                             t = 1;
-                            await Await.Seconds(1);
+                            await Await.Seconds(validationTime);
                             continue;
                         }
                     }
@@ -72,9 +72,12 @@ namespace AI.Turrets
         bool ValidateAimPoint(Vector3 point)
         {
             Ray ray = new Ray(Self.transform.position, point - Self.transform.position);
+            bool isCorrectTarget, canAim;
             if (Physics.Raycast(ray, out RaycastHit hit, Self.MaxRange))
             {
-                if (hit.transform == Target.transform || hit.transform.IsChildOf(Target.transform))
+                isCorrectTarget = hit.transform == Target.transform || hit.transform.IsChildOf(Target.transform);
+                canAim = Self.CanAim(hit.point);
+                if (isCorrectTarget && canAim)
                 {
                     return true;
                 }

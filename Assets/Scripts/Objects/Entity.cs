@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using UnityAsync;
 using UnityEngine;
 using System.Linq;
+using Management;
+using Utility;
 
 public abstract class Entity : MonoBehaviour, IDamageable
 {
@@ -16,7 +18,6 @@ public abstract class Entity : MonoBehaviour, IDamageable
     }
 
     public HealthData Health { get; set; } = new HealthData(100, 100);
-    public int Team;
 
     [SerializeField]
     protected bool UseTextureGradient;
@@ -28,33 +29,34 @@ public abstract class Entity : MonoBehaviour, IDamageable
 
 
     protected Renderer Renderer;
-    protected bool HasDecalChanged = false;
     [HideInInspector]
     public float UVPerUnit;
-    protected RenderTexture _DecalMap;
     protected (List<Vector4> points, List<float> strengths) ShieldHits;
-    public RenderTexture DecalMap { 
-        get
+
+    protected Faction m_CurrentFaction;
+    public Faction CurrentFaction
+    {
+        get => m_CurrentFaction;
+        set
         {
-            HasDecalChanged = true;
-            return _DecalMap;
-        } 
-        set {
-            _DecalMap = value;
-            HasDecalChanged = true;
+            //m_CurrentFaction?.RemoveMember(this);
+            m_CurrentFaction = value;
+            //m_CurrentFaction.AddMember(this);
         }
     }
 
+    [HideInInspector]
     public Vector3[] AimBounds;
+    [HideInInspector]
     public Transform[] AimPoints;
+    [HideInInspector]
     public GameObject[] Shields;
     protected Material[] ShieldMaterials;
     public TagTypes AdditionalTags;
 
     protected virtual void Awake()
     {
-        Renderer = GetComponent<Renderer>();
-        DecalMap = new RenderTexture(2048, 2048, 0);
+        Shields = transform.Find("Shields").FindChildren("Shield", true).Select(c=>c.gameObject).ToArray();
         ShieldHits.points = new List<Vector4>();
         ShieldHits.strengths = new List<float>();
         ShieldMaterials = new Material[Shields.Length];
@@ -71,26 +73,34 @@ public abstract class Entity : MonoBehaviour, IDamageable
         GameObject aimBoundsObject = transform.Find("AimBounds")?.gameObject;
         if (aimBoundsObject)
         {
-            AimBounds = aimBoundsObject.GetComponent<MeshFilter>().mesh.vertices;
+            AimBounds = aimBoundsObject.GetComponent<MeshFilter>().mesh.vertices.Distinct().ToArray();
+
+            //Transform Aimbounds from their old local to the ship's local
+            for(int i = 0; i < AimBounds.Length; i++)
+            {
+                AimBounds[i] = transform.InverseTransformPoint(aimBoundsObject.transform.TransformPoint(AimBounds[i]));
+            }
         }
+        DestroyImmediate(aimBoundsObject);
         Transform aimPointsContainer = transform.Find("AimPoints");
         if (aimPointsContainer)
         {
-            AimPoints = Enumerable.Concat(aimPointsContainer.FindChildren("point"), new Transform[] { transform }).ToArray(); 
+            //AimPoints = Enumerable.Concat(aimPointsContainer.FindChildren("point"), new Transform[] { transform }).ToArray(); 
+            AimPoints = aimPointsContainer.FindChildren("point").ToArray();
         }
 
-        GetUVSize();
+        Renderer = GetComponent<Renderer>();
     }
 
-    protected virtual void GetUVSize()
-    {
-        Mesh mesh = GetComponent<MeshFilter>().mesh;
-        Vector3[] verts = mesh.vertices;
-        Vector2[] uvs = mesh.uv;
-        float vertDistance = Vector3.Distance(Vector3.Scale(verts[0], transform.localScale), Vector3.Scale(verts[1], transform.localScale));
-        float uvDistance = Vector2.Distance(uvs[0], uvs[1]);
-        UVPerUnit = uvDistance / vertDistance;
-    }
+    //protected virtual void GetUVSize()
+    //{
+    //    Mesh mesh = GetComponentInChildren<MeshFilter>().mesh;
+    //    Vector3[] verts = mesh.vertices;
+    //    Vector2[] uvs = mesh.uv;
+    //    float vertDistance = Vector3.Distance(Vector3.Scale(verts[0], transform.localScale), Vector3.Scale(verts[1], transform.localScale));
+    //    float uvDistance = Vector2.Distance(uvs[0], uvs[1]);
+    //    UVPerUnit = uvDistance / vertDistance;
+    //}
 
     public virtual void RegisterHit(Vector3 hitPosition, float strength, Texture decalTexture, Material blitMaterial)
     {
@@ -101,28 +111,10 @@ public abstract class Entity : MonoBehaviour, IDamageable
                 ShieldHits.points.Add(hitPosition);
                 ShieldHits.strengths.Add(strength);
             }
-            else if (AdditionalTags.HasFlag(TagTypes.RecieveDecals))
-            {
-                RenderTexture originalMap = RenderTexture.GetTemporary(DecalMap.descriptor);
-                Graphics.Blit(DecalMap, originalMap);
-                blitMaterial.SetFloat("UVperUnit", UVPerUnit);
-                blitMaterial.SetTexture("_OriginalMap", originalMap);
-
-                Graphics.Blit(decalTexture, DecalMap, blitMaterial);
-                originalMap.Release();
-            }
         }
     }
     protected virtual void Update()
     {
-        if (HasDecalChanged)
-        {
-            foreach (Material mat in Renderer.materials)
-            {
-                mat.SetTexture("DecalMap", _DecalMap);
-            }
-            HasDecalChanged = false;
-        }
         if (Health.HasShield)
         {
             DissolveToTarget(); 
@@ -135,7 +127,6 @@ public abstract class Entity : MonoBehaviour, IDamageable
         foreach (Material shieldMat in ShieldMaterials)
         {
             shieldMat.SetInt("PointCount", ShieldHits.points.Count);
-            //ShieldMaterial.SetInt("StrengthCount", ShieldHits.strengths.Count);
 
             if (ShieldHits.points.Count > 0)
             {
@@ -175,7 +166,6 @@ public abstract class Entity : MonoBehaviour, IDamageable
                 const float dissolveThreshold = 0.5f;
                 if(shieldIntegrity <= dissolveThreshold)
                 {
-                    //mat.SetFloat("DissolveSpeed", Mathf.Lerp(0, 0.4f, (dissolveThreshold - shieldIntegrity) * (1 / dissolveThreshold)));
                     mat.SetFloat("DissolveSpeed", 0.25f);
                     TargetDissolve = Mathf.Lerp(0, 0.2f, (dissolveThreshold - shieldIntegrity) * (1 / dissolveThreshold));
                 }
@@ -223,7 +213,10 @@ public abstract class Entity : MonoBehaviour, IDamageable
             {
                 foreach (GameObject shield in Shields)
                 {
-                    shield.GetComponent<Collider>().enabled = false;
+                    if (shield.TryGetComponent(out Collider collider))
+                    {
+                        collider.enabled = false;
+                    }
                 }
                 colliderDisabled = true;
             }
@@ -254,7 +247,10 @@ public abstract class Entity : MonoBehaviour, IDamageable
             {
                 foreach (GameObject shield in Shields)
                 {
-                    shield.GetComponent<Collider>().enabled = true;
+                    if (shield.TryGetComponent(out Collider collider))
+                    {
+                        collider.enabled = true;
+                    }
                 }
                 colliderEnabled = true;
             }
@@ -268,7 +264,7 @@ public abstract class Entity : MonoBehaviour, IDamageable
 
     protected virtual void Die()
     {
-        Destroy(Instantiate(Management.DataManager.Prefabs["Explosion_Debris01"], transform.position, Quaternion.identity), 15);
+        Destroy(Instantiate(DataManager.Prefabs["Explosion_Debris01"], transform.position, Quaternion.identity), 15);
         Destroy(this.gameObject);
     }
 

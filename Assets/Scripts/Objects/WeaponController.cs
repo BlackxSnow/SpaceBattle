@@ -41,8 +41,14 @@ namespace Entities.Parts
         Transform TargetSight;
 
         public Weapon[] Weapons;
+        [Serializable]
+        public struct Loadout
+        {
+            public string Weapon;
+            public float Scale;
+        }
         [SerializeField]
-        public string[] WeaponLoadout;
+        public Loadout[] WeaponLoadout;
 
         public float CurrentAzimuth;
         public float CurrentElevation;
@@ -65,13 +71,14 @@ namespace Entities.Parts
             List<Transform> firingPieces = transform.FindChildren("FiringPiece", true);
             for(int i = 0; i < WeaponLoadout.Length; i++)
             {
-                if(DataManager.Weapons.TryGetValue(WeaponLoadout[i], out JsonConstructors.WeaponConstructor wepData))
+                if(DataManager.Weapons.TryGetValue(WeaponLoadout[i].Weapon, out JsonConstructors.WeaponConstructor wepData))
                 {
-                    Weapons[i] = wepData.CreateWeapon(DataManager.Materials["Blit_Additive"], firingPieces[i]);
+                    Weapons[i] = wepData.CreateWeapon(DataManager.Materials["Blit_Additive"], firingPieces[i], this);
+                    Weapons[i].ProjectileScale = WeaponLoadout[i].Scale;
                 }
                 else
                 {
-                    throw new ArgumentException($"No weapon '{WeaponLoadout[i]}' exists within loaded data.");
+                    throw new ArgumentException($"No weapon '{WeaponLoadout[i].Weapon}' exists within loaded data.");
                 }
             }
             if (ISDEBUG)
@@ -98,11 +105,27 @@ namespace Entities.Parts
 
         public bool CanAim(Vector3 pos)
         {
+            bool withinTolerance = Vector3.Angle(pos - TargetSight.position, TargetSight.forward) < aimTolerance;
+            //Debug.Log(Vector3.Angle(pos - TargetSight.position, TargetSight.forward));
+            //Debug.DrawLine(TargetSight.position, pos, Color.green, 5);
+            //Debug.DrawRay(TargetSight.position, TargetSight.forward * 100f, Color.red, 5);
+            if (withinTolerance)
+            {
+                return true;
+            }
             TargetingData data = CalculateTargets(pos);
             return data.IsBackwardsValid || data.IsForwardValid;
         }
         public bool CanAim(Entity target)
         {
+            bool withinTolerance = Vector3.Angle(target.transform.position - TargetSight.position, TargetSight.forward) < aimTolerance;
+            //Debug.Log(Vector3.Angle(target.transform.position - TargetSight.position, TargetSight.forward));
+            //Debug.DrawLine(TargetSight.position, target.transform.position, Color.green, 5);
+            //Debug.DrawRay(TargetSight.position, TargetSight.forward * 100f, Color.red, 5);
+            if (withinTolerance)
+            {
+                return true;
+            }
             TargetingData centre = CalculateTargets(target.transform.position);
             if (centre.IsBackwardsValid || centre.IsForwardValid)
             {
@@ -111,9 +134,16 @@ namespace Entities.Parts
             else
             {
                 bool[] canAim = new bool[target.AimBounds.Length];
+
+                Matrix4x4 localToWorld = target.transform.localToWorldMatrix;
+                Vector3 sightPosition = TargetSight.position;
+                Vector3 transformUp = transform.up;
+                Vector3 transformForward = transform.forward;
+                Vector3 sightForward = TargetSight.forward;
+
                 Parallel.For(0, target.AimBounds.Length, (i) =>
                 {
-                    TargetingData data = CalculateTargets(target.transform.TransformPoint(target.AimBounds[i]));
+                    TargetingData data = CalculateTargets(localToWorld.MultiplyPoint(target.AimBounds[i]), sightPosition, transformUp, transformForward, sightForward);
                     canAim[i] = data.IsBackwardsValid || data.IsForwardValid;
                 });
                 //Minimum two bound verts visible
@@ -128,21 +158,26 @@ namespace Entities.Parts
             }
         }
 
-        private TargetingData CalculateTargets(Vector3 pos)
+        private TargetingData CalculateTargets(Vector3 target)
+        {
+            return CalculateTargets(target, TargetSight.position, transform.up, transform.forward, TargetSight.forward);
+        }
+
+        private TargetingData CalculateTargets(Vector3 target, Vector3 sightPosition, Vector3 transformUp, Vector3 transformForward, Vector3 sightForward)
         {
             TargetingData result = new TargetingData();
             //Vector3 meridianWorldSpace = transform.localToWorldMatrix.MultiplyVector(Meridian).UNormalized();
             //Vector3 horizonWorldSpace = transform.localToWorldMatrix.MultiplyVector(Horizon).UNormalized();
             //Vector3 meridianUp = Vector3.Cross(meridianWorldSpace, horizonWorldSpace);
-            Vector3 targetDir = (pos - TargetSight.position).UNormalized();
-            Vector3 targetDirExcludeUp = Vector3.ProjectOnPlane(targetDir, transform.up);
+            Vector3 targetDir = (target - sightPosition).UNormalized();
+            Vector3 targetDirExcludeUp = Vector3.ProjectOnPlane(targetDir, transformUp);
 
-            Vector3 elevationAxis = Vector3.Cross(targetDirExcludeUp, transform.up);
+            Vector3 elevationAxis = Vector3.Cross(targetDirExcludeUp, transformUp);
 
-            result.ForwardTargets.x = Vector3.SignedAngle(transform.forward, targetDirExcludeUp, transform.up);
+            result.ForwardTargets.x = Vector3.SignedAngle(transformForward, targetDirExcludeUp, transformUp);
             result.ForwardTargets.y = -Vector3.SignedAngle(targetDirExcludeUp, targetDir, elevationAxis);
 
-            if (Mathf.Abs(Vector3.SignedAngle(elevationAxis, TargetSight.forward, transform.up)) > 180)
+            if (Mathf.Abs(Vector3.SignedAngle(elevationAxis, sightForward, transformUp)) > 180)
             {
                 result.ForwardTargets.y *= -1;
             }
@@ -150,11 +185,12 @@ namespace Entities.Parts
             result.BackwardTargets.x = (result.ForwardTargets.x + 360) % 360 - 180;
             result.BackwardTargets.y = (90 + (90 - Mathf.Abs(result.ForwardTargets.y))) * Mathf.Sign(result.ForwardTargets.y);
 
-            result.IsForwardValid = WithinBounds(result.ForwardTargets.x, AzimuthBounds) && WithinBounds(result.ForwardTargets.y, ElevationBounds);
-            result.IsBackwardsValid = WithinBounds(result.BackwardTargets.x, AzimuthBounds) && WithinBounds(result.BackwardTargets.y, ElevationBounds);
+            result.IsForwardValid = WithinBounds(result.ForwardTargets.x, AzimuthBounds, true) && WithinBounds(result.ForwardTargets.y, ElevationBounds, true);
+            result.IsBackwardsValid = WithinBounds(result.BackwardTargets.x, AzimuthBounds, true) && WithinBounds(result.BackwardTargets.y, ElevationBounds, true);
             return result;
         }
 
+        const float aimTolerance = 15;
         /// <summary>
         /// Attempt to aim at pos
         /// </summary>
@@ -163,6 +199,7 @@ namespace Entities.Parts
         public (bool, bool) AimAt(Vector3 pos)
         {
             TargetingData data = CalculateTargets(pos);
+            bool withinTolerances = Vector3.Angle(TargetSight.forward, pos - transform.position) < aimTolerance;
 
             float totalAzimuth, totalElevation;
             bool wrapAzimuth = false;
@@ -206,6 +243,10 @@ namespace Entities.Parts
             }
             else
             {
+                if (withinTolerances)
+                {
+                    return (true, true);
+                }
                 return (false, false);
             }
 
@@ -224,10 +265,8 @@ namespace Entities.Parts
             {
                 deltaAzimuth = 180 - Mathf.Abs(CurrentAzimuth) + 180 - Mathf.Abs(totalAzimuth) * Mathf.Sign(CurrentAzimuth);
             }
-            const float aimTolerance = 5;
+            
 
-            //bool withinTolerances = Mathf.Sqrt(Mathf.Pow(Mathf.Max(Mathf.Abs(deltaAzimuth) - deltaAziSpeed, 0), 2) + Mathf.Pow(Mathf.Max(Mathf.Abs(deltaElevation) - deltaEleSpeed, 0), 2)) < aimTolerance;
-            bool withinTolerances = Vector3.Angle(TargetSight.forward, pos - transform.position) < aimTolerance;
             deltaAzimuth = Mathf.Clamp(deltaAzimuth, -deltaAziSpeed, deltaAziSpeed);
             deltaElevation = Mathf.Clamp(deltaElevation, -deltaEleSpeed, deltaEleSpeed);
             CurrentAzimuth += deltaAzimuth;
