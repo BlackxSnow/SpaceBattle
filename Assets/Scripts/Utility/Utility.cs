@@ -60,6 +60,17 @@ public static class Util
         return b;
     }
 
+    /// <summary>
+    /// Calculates the scalar projection of 'a' onto 'b'
+    /// </summary>
+    /// <param name="a"></param>
+    /// <param name="b"></param>
+    /// <returns></returns>
+    public static float ScalarProjection(Vector3 a, Vector3 b)
+    {
+        return Vector3.Dot(a, b) / b.magnitude;
+    }
+
     public static Vector3 Perpendicular(Vector3 a, Vector3 b)
     {
         return Vector3.Cross(a, b);
@@ -114,5 +125,52 @@ public static class Util
             }
         }
         return result;
+    }
+
+    public static float Rad2Deg(float rad)
+    {
+        return rad * 180 / Mathf.PI;
+    }
+    public static float Deg2Rad(float deg)
+    {
+        return deg * Mathf.PI / 180;
+    }
+
+    public static float MinByAbsolute(float a, float b)
+    {
+        return Mathf.Abs(a) < Mathf.Abs(b) ? a : b;
+    }
+
+    public static float MaxByAbsolute(float a, float b)
+    {
+        return Mathf.Abs(a) > Mathf.Abs(b) ? a : b;
+    }
+
+    public static float MinAbsolute(float a, float b, out float sign)
+    {
+        if (Mathf.Abs(a) < Mathf.Abs(b))
+        {
+            sign = Mathf.Sign(a);
+            return a;
+        }
+        else
+        {
+            sign = Mathf.Sign(b);
+            return b;
+        }
+    }
+
+    public static float MaxAbsolute(float a, float b, out float sign)
+    {
+        if (Mathf.Abs(a) > Mathf.Abs(b))
+        {
+            sign = Mathf.Sign(a);
+            return a;
+        }
+        else
+        {
+            sign = Mathf.Sign(b);
+            return b;
+        }
     }
 }

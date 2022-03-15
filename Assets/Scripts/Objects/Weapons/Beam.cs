@@ -103,7 +103,7 @@ namespace Entities.Parts.Weapons
 
         }
 
-        public Beam(WeaponConstructor data, Material blitMaterial, Transform firingPiece, WeaponController controller) : base(data, blitMaterial, firingPiece, controller)
+        public Beam(WeaponConstructor data, Transform firingPiece, WeaponController controller) : base(data, firingPiece, controller)
         {
 
         }

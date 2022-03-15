@@ -13,18 +13,51 @@ namespace Entities
 {
     public class Ship : Entity
     {
-        public float CurrentSpeed;
-        public float MaxSpeed;
-        public float SpeedDelta;
 
-        public float RotationSpeed;
-        //public Vector3 CurrentAngular;
-        //public Vector3 MaxAngular;
-        //public Vector3 AngularDelta;
+        [Header("Movement")]
+        public Vector3 CurrentVelocity;
+        public float TargetSpeed;
+        public float MaxSpeed;
+        public float Acceleration;
+
+        [Header("Rotation")]
+        /// <summary>
+        /// Pitch, yaw, and roll acceleration values at ideal turning speed respectively
+        /// </summary>
+        public Vector3 PeakRotationAcceleration;
+        /// <summary>
+        /// Minimum pitch, yaw, and roll acceleration values
+        /// </summary>
+        public Vector3 MinRotationAcceleration;
+        /// <summary>
+        /// Percent of max speed where angular acceleration is highest
+        /// </summary>
+        [Tooltip("Percent of max speed where angular acceleration is highest")]
+        public float PeakManoeuvreVelocity;
+
+        /// <summary>
+        /// The current angular velocity in world space
+        /// </summary>
+        public Vector3 RotationDelta;
+        /// <summary>
+        /// The target RotationDelta in local space (Pitch, Yaw, Roll). Positive values rotate as follows: Nose down, Nose right, anti-clockwise
+        /// </summary>
+        public Vector3 TargetRotationSpeed;
+        public float MaxPitchYawDelta;
+        public float MaxRollDelta;
+
 
         public Vector3 OrientationToEnemy = Vector3.up;
         public float PreferredRange = 20; //Arbitrary placeholder range
         public float MaxRange = 30;
+
+        public PIDController PitchPID = new PIDController(1, 0, 0, 0);
+        public PIDController YawPID = new PIDController(1, 0, 0, 0);
+        public PIDController RollPID = new PIDController(1, 0, 0, 0);
+
+        public float ProportionalGain = 1;
+        public float IntegralGain = 1;
+        public float DerivativeGain = 1;
 
         protected StarSystem m_CurrentSystem;
         public StarSystem CurrentSystem
@@ -71,7 +104,162 @@ namespace Entities
         protected override void Update()
         {
             base.Update();
-            transform.Translate(Vector3.forward * CurrentSpeed * Time.deltaTime);
+
+            ReduceNonForwardVelocity();
+            ApproachTargetSpeed();
+            ApproachTargetRotationSpeed();
+
+            transform.Rotate(RotationDelta * Time.deltaTime, Space.World);
+            transform.Translate(CurrentVelocity * Time.deltaTime, Space.World);
+        }
+
+        const float rollThreshold = 15;
+
+        public bool RotateTowards(Vector3 heading, Vector3 up)
+        {
+            return RotateTowards(heading, up, out _);
+        }
+
+        public bool RotateTowards(Vector3 heading, Vector3 up, out Vector3 targetAngles)
+        {
+            TargetRotationSpeed = GetRotateTowardsTargets(heading, up, out targetAngles);
+            bool isFinished = Mathf.Approximately(TargetRotationSpeed.magnitude, 0);
+            return isFinished;
+        }
+
+        public Vector3 GetRotateTowardsTargets(Vector3 heading, Vector3 up, out Vector3 targetAngles)
+        {
+            Vector3 result;
+            Vector3 currentRotationAcceleration = GetCurrentRotationAcceleration();
+
+            Vector3 headingOnRollPlane = Vector3.ProjectOnPlane(heading, transform.forward);
+
+            float targetRollAngle;
+            float angleFromHeading = Vector3.Angle(transform.forward, heading);
+            if (angleFromHeading > rollThreshold)
+            {
+                float upRollAngle = Vector3.SignedAngle(transform.up, headingOnRollPlane, transform.forward);
+                float downRollAngle = Vector3.SignedAngle(-transform.up, headingOnRollPlane, transform.forward);
+                targetRollAngle = Mathf.Abs(upRollAngle) < Mathf.Abs(downRollAngle) ? upRollAngle : downRollAngle;
+            }
+            else
+            {
+                targetRollAngle = Vector3.SignedAngle(transform.up, Vector3.ProjectOnPlane(up, transform.forward), transform.forward);
+            }
+
+            result.z = Mathf.Sign(targetRollAngle) * Mathf.Sqrt(Mathf.Abs(targetRollAngle) * currentRotationAcceleration.z * 2);
+
+            float targetPitchAngle = Vector3.SignedAngle(transform.forward, Vector3.ProjectOnPlane(heading, transform.right), transform.right);
+            result.x = Mathf.Sign(targetPitchAngle) * Mathf.Sqrt(Mathf.Abs(targetPitchAngle) * currentRotationAcceleration.x * 2);
+
+            float targetYawAngle = Vector3.SignedAngle(transform.forward, Vector3.ProjectOnPlane(heading, transform.up), transform.up);
+            result.y = Mathf.Sign(targetYawAngle) * Mathf.Sqrt(Mathf.Abs(targetYawAngle) * currentRotationAcceleration.y * 2);
+
+            Debug.Assert(result.x != float.NaN && result.y != float.NaN & result.z != float.NaN);
+            targetAngles = new Vector3(targetPitchAngle, targetYawAngle, targetRollAngle);
+            return result;
+        }
+
+        /// <summary>
+        /// Rotate towards a direction with a static angular velocity target of 'speed'
+        /// </summary>
+        /// <param name="direction"></param>
+        /// <param name="speed"></param>
+        /// <param name="useRoll">Whether or not to use roll to orient the pitch axis towards the target</param>
+        public void RotateInDirection(Vector3 direction, float speed, bool useRoll = true)
+        {
+            Vector3 currentRotationAcceleration = GetCurrentRotationAcceleration();
+            Vector3 directionOnForwardPlane = Vector3.ProjectOnPlane(direction, transform.forward);
+            //Orient pitch towards direction
+            float angleFromHeading = Vector3.Angle(transform.forward, direction * Mathf.Sign(speed));
+            if (angleFromHeading > rollThreshold && useRoll)
+            {
+                float upRollAngle = Vector3.SignedAngle(transform.up, directionOnForwardPlane, transform.forward);
+                float downRollAngle = -(180 - Mathf.Abs(upRollAngle));
+                float targetRollAngle = Mathf.Abs(upRollAngle) < Mathf.Abs(downRollAngle) ? upRollAngle : downRollAngle;
+                TargetRotationSpeed.z = Mathf.Sign(targetRollAngle) * Mathf.Sqrt(Mathf.Abs(targetRollAngle) * currentRotationAcceleration.z * 2);
+            }
+
+            float rightProjection = Util.ScalarProjection(transform.right, directionOnForwardPlane);
+            float leftProjection = -rightProjection;
+            float yawModifier = Mathf.Max(rightProjection, leftProjection);
+            TargetRotationSpeed.y = (rightProjection > leftProjection ? 1 : -1) * speed * yawModifier;
+
+            float upProjection = Util.ScalarProjection(transform.up, directionOnForwardPlane);
+            float downProjection = -upProjection;
+            float pitchModifier = Mathf.Max(upProjection, downProjection);
+            TargetRotationSpeed.x = (downProjection > upProjection ? 1 : -1) * speed * pitchModifier;
+
+            if (float.IsNaN(TargetRotationSpeed.x) || float.IsNaN(TargetRotationSpeed.y) || float.IsNaN(TargetRotationSpeed.z))
+            {
+                TargetRotationSpeed = new Vector3(0, 0, 0);
+                throw new ArgumentException($"At least one component of TargetRotationSpeed was set to NaN.");
+            }
+        }
+
+        /// <summary>
+        /// Calculates the current rotation acceleration values based on current forward speed
+        /// </summary>
+        /// <returns></returns>
+        public Vector3 GetCurrentRotationAcceleration()
+        {
+            float speedPercentage = Mathf.Abs(Util.ScalarProjection(CurrentVelocity, transform.forward)) / MaxSpeed;
+            float distanceForMin = Mathf.Max(1f - PeakManoeuvreVelocity, PeakManoeuvreVelocity);
+
+            float velocityDistance = Mathf.Abs(speedPercentage - PeakManoeuvreVelocity);
+            Vector3 result = Vector3.Lerp(PeakRotationAcceleration, MinRotationAcceleration, velocityDistance / distanceForMin);
+            return result;
+        }
+
+        public float GetIdealTurnSpeed()
+        {
+            return PeakManoeuvreVelocity * MaxSpeed;
+        }
+
+        /// <summary>
+        /// Move velocity towards the target forward speed by up to acceleration
+        /// </summary>
+        protected void ApproachTargetSpeed()
+        {
+            CurrentVelocity += transform.forward * Mathf.Clamp(TargetSpeed - Util.ScalarProjection(CurrentVelocity, transform.forward), -Acceleration * Time.deltaTime, Acceleration * Time.deltaTime);
+
+            float forwardSpeed = GetForwardSpeed();
+            if (forwardSpeed > MaxSpeed)
+            {
+                CurrentVelocity /= forwardSpeed / MaxSpeed;
+            }
+        }
+
+        public float GetForwardSpeed()
+        {
+            return Util.ScalarProjection(CurrentVelocity, transform.forward);
+        }
+
+        protected void ApproachTargetRotationSpeed()
+        {
+            Vector3 currentRoll = Vector3.Project(RotationDelta, transform.forward);
+            Vector3 targetRoll = transform.forward * TargetRotationSpeed.z;
+
+            Vector3 currentPitch = Vector3.Project(RotationDelta, transform.right);
+            Vector3 targetPitch = transform.right * TargetRotationSpeed.x;
+
+            Vector3 currentYaw = Vector3.Project(RotationDelta, transform.up);
+            Vector3 targetYaw = transform.up * TargetRotationSpeed.y;
+
+            //TODO: update to use modified rot speed based on current velocity
+            RotationDelta = Vector3.MoveTowards(currentRoll, targetRoll, PeakRotationAcceleration.z * Time.deltaTime);
+            RotationDelta += Vector3.MoveTowards(currentPitch, targetPitch, PeakRotationAcceleration.x * Time.deltaTime);
+            RotationDelta += Vector3.MoveTowards(currentYaw, targetYaw, PeakRotationAcceleration.y * Time.deltaTime);
+        }
+
+        /// <summary>
+        /// Reduce all non-forward velocity by up to acceleration value
+        /// </summary>
+        protected void ReduceNonForwardVelocity()
+        {
+            Vector3 nonForwardVelocity = (CurrentVelocity - Vector3.Project(CurrentVelocity, transform.forward)) * 0.5f;
+            Vector3 reductionValue = Vector3.MoveTowards(Vector3.zero, nonForwardVelocity, Acceleration);
+            CurrentVelocity -= reductionValue + nonForwardVelocity;
         }
 
         public bool ShouldRetreat()

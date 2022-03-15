@@ -58,7 +58,7 @@ namespace Entities.Parts.Weapons
             bullet.SourceVFX = ProjectileVFX;
         }
 
-        public Projectile(WeaponConstructor data, Material blitMaterial, Transform firingPiece, WeaponController controller) : base(data, blitMaterial, firingPiece, controller)
+        public Projectile(WeaponConstructor data, Transform firingPiece, WeaponController controller) : base(data, firingPiece, controller)
         {
 
         }

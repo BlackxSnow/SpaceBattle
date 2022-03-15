@@ -8,6 +8,7 @@ using UnityEngine;
 using Entities;
 using UnityAsync;
 using AI.Pathing;
+using Utility;
 
 namespace AI.Actions
 {
@@ -18,48 +19,136 @@ namespace AI.Actions
         Vector3 LocalOrientationToTarget;
         public float Radius;
 
+        /// <summary>
+        /// The distance from the orbit where orbiting stops and pathing takes over
+        /// </summary>
+        const float OrbitTolerance = 100;
+        /// <summary>
+        /// The distance from the orbit where pathing stops and orbiting takes over
+        /// </summary>
+        const float InnerTolerance = OrbitTolerance / 2;
+
         protected override async void Behaviour(CancellationToken token)
         {
-            Vector3 toTarget, /*orientedToTarget,*/ targetPerpendicular, modifiedTrajectory;
-            Quaternion /*rotationToOrientation,*/ targetRotation, result, targetRoll;
+            Vector3 toTarget;
             Collider shipCollider = Self.GetComponent<Collider>();
             Target.TryGetComponent<Collider>(out Collider targetCollider);
-            float targetMod, rotationDeltaFactor, targetSpeed, distanceToTarget;
+            float distanceToTarget;
+            bool isLastErrorValid = false; //Was the last PID call in the last frame?
+
+            UILineRenderer.UILine line = GameObject.Find("Canvas").GetComponentInChildren<UILineRenderer.UILine>();
+            line.BezierControlPoints = new UILineRenderer.BezierPoint[600];
+            for(int i = 0; i < line.BezierControlPoints.Length; i++)
+            {
+                line.BezierControlPoints[i] = new UILineRenderer.BezierPoint();
+                line.BezierControlPoints[i].Position = new Vector2(i, 0);
+            }
+            PIDController pidController = new PIDController(1, 0.1f, 10, 0, line);
             while(!token.IsCancellationRequested && Self != null && Target != null)
             {
                 toTarget = (Target.position - Self.transform.position);
                 distanceToTarget = toTarget.magnitude;
                 toTarget = toTarget.UNormalized();
+
+                //The centripetal acceleration formula is a_c = v^2 / r, we rearrange in terms of v. The maximum a_c is equal to our ship's maximum acceleration value
+                float maxOrbitVelocity = Mathf.Clamp(Mathf.Sqrt(Self.Acceleration * Radius), 0, Self.MaxSpeed);
+
                 //TODO: Fix this (targetRoll up = orientedToTarget)
-                //rotationToOrientation = Quaternion.FromToRotation(Self.transform.localToWorldMatrix.MultiplyVector(LocalOrientationToTarget), toTarget);
-                //orientedToTarget = rotationToOrientation * toTarget;
+
+                if (distanceToTarget > Radius + OrbitTolerance)
+                {
+                    await MoveIntoOrbit(token, maxOrbitVelocity);
+                    pidController.Reset();
+                    isLastErrorValid = false;
+                    continue;
+                }
+                else
+                {
+
+                    float pidError;
+                    float currentError = Radius - distanceToTarget;
+
+                    if (isLastErrorValid)
+                    {
+                        pidController.SetGain(Self.ProportionalGain, Self.IntegralGain, Self.DerivativeGain);
+                        pidError = pidController.PID(currentError);
+                    }
+                    else
+                    {
+                        pidController.Reset();
+                        pidError = pidController.PI(currentError);
+                        isLastErrorValid = true;
+                    }
+
+                    Vector3 tangentDirection = Vector3.ProjectOnPlane(Self.transform.forward, toTarget).normalized;
+
+                    Self.RotateInDirection(toTarget, -pidError);
+
+                    Self.TargetSpeed = maxOrbitVelocity;
+
+                    if (Self.RotationDelta.sqrMagnitude > 0)
+                    {
+                        Vector3 rotatedForwardDirection = Matrix4x4.Rotate(Quaternion.Euler(Self.RotationDelta.UNormalized())).MultiplyVector(Self.transform.forward);
+                        float rotatedProjection = Util.ScalarProjection(rotatedForwardDirection, toTarget);
+                        float currentProjection = Util.ScalarProjection(Self.transform.forward, toTarget);
+
+                        bool isNewRotationAwayFromTarget = rotatedProjection < currentProjection;
+
+                        if (isNewRotationAwayFromTarget)
+                        {
+                            pidController.Reset();
+                            Debug.Log("PID was reset");
+                        } 
+                    }
+                }
                 
-                targetPerpendicular = new Vector2(toTarget.x, toTarget.y).Perpendicular();
-                targetMod = Util.Map(Vector3.Distance(Self.transform.position, Target.position), Radius * 0.8f, Radius * 1.2f, -1, 1f);
-                modifiedTrajectory = (toTarget * targetMod + targetPerpendicular).UNormalized();
-                modifiedTrajectory = CollisionAvoidance.AvoidObstacles(modifiedTrajectory, shipCollider, distanceToTarget > Mathf.Max(Radius * 1.25f, Self.MaxSpeed) ? Self.MaxSpeed : Radius * 0.75f, targetCollider);
-
-                //Calculate rotation and roll seperately, as they're governed by different speeds
-                targetRotation = Quaternion.LookRotation(modifiedTrajectory, Self.transform.up);
-                result = Quaternion.RotateTowards(Self.transform.rotation, targetRotation, Self.RotationSpeed * Time.deltaTime);
-                targetRoll = Quaternion.LookRotation(result * Vector3.forward, toTarget);
-
-                //The fraction of the targetRotation achieved according to the rotation speed;
-                rotationDeltaFactor = Self.RotationSpeed * Time.deltaTime / Mathf.Max(Quaternion.Angle(Self.transform.rotation, targetRotation), 1);
-                Self.transform.rotation = Quaternion.RotateTowards(result, targetRoll, Self.RotationSpeed * Time.deltaTime);
-
-                //TargetSpeed adjusts for low rotationDeltaFactors - hopefully fixes the orbit at the cost of speed
-                targetSpeed = Mathf.Clamp(Self.MaxSpeed * rotationDeltaFactor, 0, Self.MaxSpeed);
-                Self.CurrentSpeed += Mathf.Clamp(targetSpeed - Self.CurrentSpeed, -Self.SpeedDelta * Time.deltaTime, Self.SpeedDelta * Time.deltaTime);
-                Self.transform.Translate(Vector3.forward * Self.CurrentSpeed * Time.deltaTime);
-
-                //Debug.DrawRay(Self.transform.position, toTarget * 3f, Color.green);
-                //Debug.DrawRay(Self.transform.position, targetPerpendicular * 3f, Color.red);
-                //Debug.DrawRay(Self.transform.position, modifiedTrajectory * 3f, Color.blue);
-                //Debug.DrawRay(Self.transform.position, orientedToTarget * 3f, Color.green);
                 await Await.NextUpdate();
             }
             Complete();
+        }
+        
+        private async Task MoveIntoOrbit(CancellationToken token, float maxOrbitVelocity)
+        {
+            Vector3 toTarget = (Target.position - Self.transform.position);
+            float distanceToTarget = toTarget.magnitude;
+
+            MoveTo interceptOrbit = new MoveTo(Self, Vector3.zero, maxOrbitVelocity);
+            bool hasMoveStarted = false;
+
+            while (!token.IsCancellationRequested && distanceToTarget > Radius + InnerTolerance)
+            {
+                toTarget = (Target.position - Self.transform.position);
+                distanceToTarget = toTarget.magnitude;
+                toTarget = toTarget.UNormalized();
+
+                Vector3 nonParallelUp = Vector3.Cross(Vector3.up, toTarget);
+                if (nonParallelUp.sqrMagnitude == 0)
+                {
+                    nonParallelUp = Vector3.Cross(Vector3.right, toTarget);
+                }
+                nonParallelUp = nonParallelUp.UNormalized();
+
+                float tangentAngle = Mathf.Asin(Radius / distanceToTarget);
+                float tangentMagnitude = distanceToTarget * Mathf.Cos(tangentAngle);
+
+                Vector3 radiusOrthogonal = Vector3.Cross(nonParallelUp, toTarget);
+
+                Vector3 tangentDirection = Quaternion.AngleAxis(Util.Rad2Deg(tangentAngle), radiusOrthogonal) * toTarget;
+                Vector3 intercept = Self.transform.position + (tangentDirection * tangentMagnitude);
+
+                interceptOrbit.Target = intercept;
+
+                Debug.DrawRay(Self.transform.position, tangentDirection * tangentMagnitude, Color.red);
+
+                if (!hasMoveStarted)
+                {
+                    interceptOrbit.Start();
+                }
+
+                await Await.NextUpdate();
+            }
+
+            interceptOrbit.Stop();
         }
 
         public OrbitTarget(Ship self, Transform target, Vector3 localOrientationToTarget, float radius)

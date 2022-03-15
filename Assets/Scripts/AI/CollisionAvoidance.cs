@@ -19,8 +19,8 @@ namespace AI.Pathing
             {
                 if (collider != self && !ignore.Contains(collider) && !ignore.Any(i => collider.transform.IsChildOf(i.transform)) && !collider.transform.IsChildOf(self.transform) && !evalutated.Contains(collider.transform.position))
                 {
-                    colClosest = collider.ClosestPoint(self.transform.position);
-                    selfClosest = self.ClosestPoint(colClosest);
+                    colClosest = collider.ClosestPointOnBounds(self.transform.position);
+                    selfClosest = self.ClosestPointOnBounds(colClosest);
                     distance = Vector3.Distance(colClosest, selfClosest);
 
                     avoidDirection = (selfClosest - colClosest).UNormalized();

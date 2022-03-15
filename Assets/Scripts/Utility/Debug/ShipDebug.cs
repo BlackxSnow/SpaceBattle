@@ -79,7 +79,7 @@ namespace EditorDebug
                     }
                     else
                     {
-                        //Self.AIStateMachine.SetBehaviour(new MoveTo(Self, MoveTarget));
+                        Self.AIStateMachine.SetBehaviour(new MoveTo(Self, MoveTarget));
                     }
                     if (ShootTarget != null)
                     {

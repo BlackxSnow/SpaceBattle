@@ -16,39 +16,66 @@ namespace AI.Actions
         public Transform Target;
         float BreakoffDistance, EngageDistance;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="direction"></param>
+        /// <returns></returns>
+        //Could be changed to bounding box for better performance
+        protected float GetDistanceToTarget(Vector3 direction)
+        {
+            Ray ray = new Ray(Self.transform.position, direction);
+            RaycastHit[] hits = Physics.RaycastAll(ray, Vector3.Distance(Self.transform.position, Target.position));
+            if (hits.Length == 0)
+            {
+                return 0;
+            }
+            else
+            {
+                return hits.Where(h => h.transform.IsChildOf(Target) || h.transform == Target).Aggregate((min, next) => min.distance < next.distance ? min : next).distance;
+            }
+        }
+
+        private enum StrafeState
+        {
+            Approaching,
+            BreakingOff
+        }
+
         protected override async void Behaviour(CancellationToken token)
         {
-            Vector3 toTarget;
+            Vector3 toTarget = Target.position - Self.transform.position;
             Quaternion targetRotation;
-            float targetDistance, targetSpeed;
-            bool isApproaching = Vector3.Distance(Self.transform.position, Target.position) > BreakoffDistance;
-            while (!token.IsCancellationRequested && Self != null && Target != null)
+            float targetDistance;
+            Vector3 breakoffPointObjectSpace;
+
+            StrafeState currentState = StrafeState.Approaching;
+
+
+            while (!token.IsCancellationRequested && Self != null && Target != null && Self != Target)
             {
                 Vector3 targetHeading;
                 toTarget = Target.position - Self.transform.position;
 
                 //Distance from target surface
-                //Could be changed to bounding box for better performance
-                Ray ray = new Ray(Self.transform.position, toTarget);
-                RaycastHit[] hits = Physics.RaycastAll(ray, Vector3.Distance(Self.transform.position, Target.position));
-                if (hits.Length == 0)
+                targetDistance = GetDistanceToTarget(toTarget);
+                
+                if (currentState == StrafeState.Approaching)
                 {
-                    Debug.DrawRay(Self.transform.position, toTarget.UNormalized() * Vector3.Distance(Self.transform.position, Target.position), Color.green, 5);
+                    if (targetDistance < BreakoffDistance)
+                    {
+                        currentState = StrafeState.BreakingOff;
+                    }
                 }
-                targetDistance = hits.Where(h => h.transform.IsChildOf(Target) || h.transform == Target).Aggregate((min, next) => min.distance < next.distance ? min : next).distance;
-
-                if (isApproaching && targetDistance < BreakoffDistance)
+                else
                 {
-                    isApproaching = false;
-                    //Debug.Log($"{Self.name} is beginning breakoff at {targetDistance}");
-                }
-                else if (!isApproaching && targetDistance > EngageDistance)
-                {
-                    isApproaching = true;
-                    //Debug.Log($"{Self.name} is beginning engage at {targetDistance}");
+                    if (targetDistance > EngageDistance)
+                    {
+                        currentState = StrafeState.Approaching;
+                    }
                 }
 
-                if (isApproaching)
+                if (currentState == StrafeState.Approaching)
                 {
                     targetHeading = toTarget;
                 }
@@ -58,16 +85,10 @@ namespace AI.Actions
                 }
 
                 targetRotation = Quaternion.LookRotation(targetHeading);
-                if (Quaternion.Angle(Self.transform.rotation, targetRotation) > Self.RotationSpeed)
-                {
-                    targetSpeed = Self.MaxSpeed / 2;
-                }
-                else
-                {
-                    targetSpeed = Self.MaxSpeed;
-                }
-                Self.transform.rotation = Quaternion.RotateTowards(Self.transform.rotation, targetRotation, Self.RotationSpeed * Time.deltaTime);
-                Self.CurrentSpeed += Mathf.Clamp(targetSpeed - Self.CurrentSpeed, -Self.SpeedDelta * Time.deltaTime, Self.SpeedDelta * Time.deltaTime);
+
+                bool facingTarget = Self.RotateTowards(targetHeading, Vector3.up);
+                Self.TargetSpeed = facingTarget ? Self.MaxSpeed : Self.GetIdealTurnSpeed();
+
                 await Await.NextUpdate();
             }
 

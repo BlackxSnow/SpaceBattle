@@ -102,7 +102,7 @@ namespace Entities.Parts.Weapons
             FiringPiece = firingPiece;
         }
 
-        public Weapon(JsonConstructors.WeaponConstructor data, Material blitMaterial, Transform firingPiece, WeaponController controller)
+        public Weapon(JsonConstructors.WeaponConstructor data, Transform firingPiece, WeaponController controller)
         {
             Damage = data.Damage;
             RateOfFire = data.RateOfFire;
@@ -133,7 +133,6 @@ namespace Entities.Parts.Weapons
                 ProjectileVFX.visualEffectAsset = vfxAsset; 
             }
 
-            BlitMaterial = blitMaterial;
             FiringPiece = firingPiece;
             Controller = controller;
         }
@@ -157,9 +156,9 @@ namespace JsonConstructors
             WeaponType = Type.GetType("Entities.Parts.Weapons." + SWeaponType);
         }
 
-        public Weapon CreateWeapon(Material blitMaterial, Transform firingPiece, WeaponController controller)
+        public Weapon CreateWeapon(Transform firingPiece, WeaponController controller)
         {
-            Weapon weapon =  (Weapon)Activator.CreateInstance(WeaponType, this, blitMaterial, firingPiece, controller);
+            Weapon weapon =  (Weapon)Activator.CreateInstance(WeaponType, this, firingPiece, controller);
             weapon.Init();
             return weapon;
         }

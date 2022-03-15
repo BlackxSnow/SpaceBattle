@@ -38,13 +38,6 @@ MonoBehaviour:
     - Texture
     m_MainAsset: {fileID: 0}
     m_TargetAsset: {fileID: 0}
-  - m_GUID: 17d7e76821251834e8275f84828aebf6
-    m_Address: Blit_Additive
-    m_ReadOnly: 0
-    m_SerializedLabels:
-    - Material
-    m_MainAsset: {fileID: 0}
-    m_TargetAsset: {fileID: 0}
   - m_GUID: a146f2dd624d170469ca527bea8e9d22
     m_Address: Explosion_Debris01
     m_ReadOnly: 0
@@ -57,8 +50,8 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels:
     - Prefab
-    m_MainAsset: {fileID: 0}
-    m_TargetAsset: {fileID: 0}
+    m_MainAsset: {fileID: 3426681099318590223, guid: 6f4d266d8916593419e09609f63329ae, type: 3}
+    m_TargetAsset: {fileID: 3426681099318590223, guid: 6f4d266d8916593419e09609f63329ae, type: 3}
   - m_GUID: b5ea084b046edff4e9048c646df83fe3
     m_Address: Impact_PlasmaInstant01
     m_ReadOnly: 0

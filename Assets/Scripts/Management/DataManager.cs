@@ -7,8 +7,8 @@ using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine.ResourceManagement.ResourceLocations;
-using Newtonsoft.Json;
 using Entities.Parts.Weapons;
+using Newtonsoft.Json;
 using System.IO;
 using JsonConstructors;
 using UnityEngine.VFX;
@@ -64,7 +64,7 @@ namespace Management
             Task<Dictionary<string, GameObject>> populatePrefabs    = PopulateDictionary<GameObject>(prefabLocations.Result);
             Task<Dictionary<string, Texture2D>> populateTextures    = PopulateDictionary<Texture2D>(textureLocations.Result);
             Task<Dictionary<string, Material>> populateMaterials    = PopulateDictionary<Material>(materialLocations.Result);
-            Task<Dictionary<string, VisualEffectAsset>> populateVFX      = PopulateDictionary<VisualEffectAsset>(vfxLocations.Result);
+            Task<Dictionary<string, VisualEffectAsset>> populateVFX = PopulateDictionary<VisualEffectAsset>(vfxLocations.Result);
             await Task.WhenAll(populateMaterials, populatePrefabs, populateTextures, populateVFX);
 
             Prefabs       = populatePrefabs.Result;

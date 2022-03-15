@@ -73,7 +73,7 @@ namespace Entities.Parts
             {
                 if(DataManager.Weapons.TryGetValue(WeaponLoadout[i].Weapon, out JsonConstructors.WeaponConstructor wepData))
                 {
-                    Weapons[i] = wepData.CreateWeapon(DataManager.Materials["Blit_Additive"], firingPieces[i], this);
+                    Weapons[i] = wepData.CreateWeapon(firingPieces[i], this);
                     Weapons[i].ProjectileScale = WeaponLoadout[i].Scale;
                 }
                 else
