@@ -9,7 +9,11 @@ namespace Management
 {
     public class GameManager : MonoBehaviour
     {
-        public static GameManager Instance;
+
+        private static GameManager _Instance;
+        public static GameManager Instance { get => _Instance; }
+
+        public static PlayerControls Controls { get; private set; }
 
         public static Dictionary<string, StarSystem> Systems = new Dictionary<string, StarSystem>();
         public static Dictionary<string, Faction> Factions = new Dictionary<string, Faction>();
@@ -18,14 +22,11 @@ namespace Management
 
         private void Awake()
         {
-            if (Instance == null)
-            {
-                Instance = this;
-            }
-            else
-            {
-                throw new Exception($"Multiple GameManagers exist");
-            }
+            Utility.Architecture.AssignSingleton(ref _Instance, this);
+
+            Controls = new PlayerControls();
+            Controls.Enable();
+
             if (DataManager.IsDataLoaded)
             {
                 OnDataLoaded();
@@ -59,7 +60,7 @@ namespace Management
             Systems.Add("Astraeus", new StarSystem());
             Systems["Astraeus"].SystemName = "Astraeus";
             IsGameInitialized = true;
-            GameInitialized.Invoke();
+            GameInitialized?.Invoke();
         }
     }
 }
